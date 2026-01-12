@@ -1,4 +1,3 @@
-
 export enum SyncType {
   ELEMENT = 'element',
   LUNAR = 'lunar',
@@ -60,6 +59,12 @@ export interface CardInstance {
     // State for specific cards
     justiceBonus?: number;
     towerCycles?: number; // For Tower (every 8)
+    towerArcanoActive?: boolean; // For Tower Arcano Maior mode
+    
+    // The Hanged Man state
+    hangedManActive?: boolean; // Mark as active altar
+    hangedManConsumes?: number; // Track consumed cards count
+    hangedManActivatedAt?: number; // When altar was activated
 }
 
 export interface ShopItem {
@@ -115,6 +120,9 @@ export interface SavedCardInstance {
   jb?: number; // justiceBonus
   tc?: number; // towerCycles
   em?: number; // effectMultiplier
+  hma?: boolean; // hangedManActive
+  hmc?: number; // hangedManConsumes
+  hmaa?: number; // hangedManActivatedAt
 }
 
 export interface SaveState {
