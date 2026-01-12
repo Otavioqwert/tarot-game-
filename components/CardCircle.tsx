@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { CircleSlot, CardInstance } from '../types';
 import { TAROT_LIBRARY, BLANK_CARD_DATA, LUNAR_MAX } from '../constants';
-import { effects } from '../effects';
+import { cardHandlers } from '../effects';
 import CardTooltip from './CardTooltip';
 
 interface CardCircleProps {
@@ -90,7 +90,7 @@ const CardCircle: React.FC<CardCircleProps> = ({ slots, onRemove, onPlace, onAct
       {slots.map((slot, i) => {
         const cardData = getCardData(slot.card);
         const isPlacing = selectedCardIndex !== null && (!slot.card || slot.card.isBlank);
-        const isActivatable = cardData?.effectId && effects[cardData.effectId]?.onActivate;
+        const isActivatable = cardData?.effectId && cardHandlers[cardData.effectId]?.onActivate;
         const isOnCooldown = slot.card?.cooldownUntil && slot.card.cooldownUntil > globalHours;
 
         let passiveCooldownProgress: { progress: number, color: string } | null = null;
