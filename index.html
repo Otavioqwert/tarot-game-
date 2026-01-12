@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aether Cycles</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --day-glow-color: rgba(45, 29, 12, 0); /* #2d1d0c with 0 alpha */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #050810;
+            background-image: radial-gradient(ellipse at bottom, var(--day-glow-color) 0%, #050810 60%);
+            color: #f8fafc;
+            overflow-x: hidden;
+            transition: background-image 1s linear;
+        }
+        .font-mystic {
+            font-family: 'Cinzel', serif;
+        }
+        
+        /* Daytime Theme Adjustments */
+        .theme-day header {
+            border-bottom-color: rgba(234, 179, 8, 0.2);
+        }
+        .theme-day .header-title {
+            color: #fcd34d; /* amber-300 */
+        }
+        
+        @keyframes sun-pulse {
+            0%, 100% { transform: scale(1); opacity: 0.9; }
+            50% { transform: scale(1.05); opacity: 1; }
+        }
+        .sun-icon-animation {
+            animation: sun-pulse 4s infinite ease-in-out;
+        }
+
+        /* Shop Restock Animations */
+        @keyframes dissolve-out {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(0.8); }
+        }
+        .dissolve-out {
+            animation: dissolve-out 0.5s forwards ease-in;
+        }
+
+        @keyframes vortex-spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .vortex-spin {
+            animation: vortex-spin 4s linear infinite;
+        }
+
+        @keyframes materialize-in {
+            from { opacity: 0; transform: translateY(-20px) scale(0.8); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .materialize-in {
+            animation: materialize-in 0.5s 3.5s backwards ease-out;
+        }
+
+        /* Card Interaction & Cooldown UI */
+        @keyframes flow {
+            to { stroke-dashoffset: -20; }
+        }
+        .interaction-line {
+            stroke-width: 1;
+            stroke-dasharray: 10;
+            animation: flow 1s linear infinite;
+            filter: drop-shadow(0 0 3px currentColor);
+        }
+        .cooldown-arc {
+            fill: none;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            transform-origin: center;
+            transform: rotate(-90deg);
+            transition: stroke-dashoffset 0.5s linear;
+            filter: drop-shadow(0 0 4px currentColor);
+        }
+        
+        /* Synergy Constellations */
+        @keyframes stars-pulse {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 0.6; }
+        }
+
+        .synergy-constellation {
+            stroke-dasharray: 4;
+            animation: flow 2s linear infinite, stars-pulse 4s ease-in-out infinite;
+            filter: drop-shadow(0 0 5px #a5b4fc);
+        }
+
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3"
+  }
+}
+</script>
+</head>
+<body>
+    <div id="root"></div>
+</body>
+</html>
