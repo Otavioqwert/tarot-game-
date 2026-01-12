@@ -302,10 +302,22 @@ const App: React.FC = () => {
           return;
       }
       
-      activateCardEffect(slotIndex, slots, {
-          globalHours, globalSync, slots, activeSynergies,
-          setSlots, setInventory, setCurrency, setGlobalHours, setGlobalBuffs, setPendingPayouts, setTickRate, setSynergyResourceRate
-      });
+      activateCardEffect(
+        slotIndex,
+        slots,
+        globalHours,
+        globalSync,
+        activeSynergies,
+        globalBuffs,
+        setSlots,
+        setInventory,
+        setCurrency,
+        setGlobalHours,
+        setGlobalBuffs,
+        setPendingPayouts,
+        setTickRate,
+        setSynergyResourceRate
+      );
   };
 
   const handleInventoryClick = (index: number) => {
