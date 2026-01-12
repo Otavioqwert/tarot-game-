@@ -881,6 +881,70 @@ export const activateCardEffect = (
 };
 
 // ============================================================================
+// SHOP RESTOCK HANDLER
+// ============================================================================
+
+interface RestockContext {
+  globalHours: number;
+  globalSync: number;
+  slots: CircleSlot[];
+  activeSynergies: ActiveSynergy[];
+  setSlots: React.Dispatch<React.SetStateAction<CircleSlot[]>>;
+  setInventory: React.Dispatch<React.SetStateAction<CardInstance[]>>;
+  setCurrency: React.Dispatch<React.SetStateAction<number>>;
+  setGlobalHours: React.Dispatch<React.SetStateAction<number>>;
+  setGlobalBuffs: React.Dispatch<React.SetStateAction<GlobalBuff[]>>;
+  setPendingPayouts: React.Dispatch<React.SetStateAction<PendingPayout[]>>;
+  setTickRate: React.Dispatch<React.SetStateAction<number>>;
+  setSynergyResourceRate: React.Dispatch<React.SetStateAction<number>>;
+}
+
+export const handleRestock = (
+  items: ShopItem[],
+  slots: CircleSlot[],
+  context: RestockContext
+): ShopItem[] => {
+  // Allow cards to modify shop items during restock
+  // Currently just returns items as-is
+  // Can be extended to call onRestock handlers from cards
+  
+  let modifiedItems = [...items];
+
+  // Call onRestock handlers for cards in circle
+  slots.forEach((slot, idx) => {
+    if (!slot.card) return;
+
+    const cardData = getCardData(slot.card);
+    const handler = cardHandlers[cardData?.effectId || ''];
+
+    if (handler?.onRestock) {
+      const restockCtx: EffectContext = {
+        cardInstance: slot.card,
+        cardIndex: idx,
+        slots,
+        globalHours: context.globalHours,
+        currentCycle: context.globalHours % LUNAR_MAX,
+        globalSync: context.globalSync,
+        activeSynergies: context.activeSynergies,
+        globalBuffs: [],
+        setSlots: context.setSlots,
+        setInventory: context.setInventory,
+        setCurrency: context.setCurrency,
+        setGlobalHours: context.setGlobalHours,
+        setGlobalBuffs: context.setGlobalBuffs,
+        setPendingPayouts: context.setPendingPayouts,
+        setTickRate: context.setTickRate,
+        setSynergyResourceRate: context.setSynergyResourceRate,
+      };
+
+      handler.onRestock(restockCtx);
+    }
+  });
+
+  return modifiedItems;
+};
+
+// ============================================================================
 // CRYPTOGRAPHY KEYS (Isolated from save logic)
 // ============================================================================
 
