@@ -38,26 +38,28 @@ const ChoiceModal: React.FC<ChoiceModalProps> = ({ cards, onSelect }) => {
         aria-modal="true"
         aria-labelledby="choice-modal-title"
         aria-describedby="choice-modal-description"
-        className="bg-gradient-to-b from-slate-900 to-slate-950 border-2 border-rose-700/50 rounded-xl shadow-2xl max-w-2xl w-full mx-4"
+        className="bg-gradient-to-b from-slate-800 to-slate-900 border-2 border-rose-600 rounded-xl shadow-2xl max-w-2xl w-full mx-4"
       >
         {/* Header */}
-        <div className="p-6 border-b border-rose-700/20">
+        <div className="p-6 border-b border-rose-600/40 bg-slate-800/80">
           <h2
             id="choice-modal-title"
-            className="text-2xl font-mystic text-rose-300 mb-2 text-center tracking-wider"
+            className="text-3xl font-mystic text-rose-300 mb-2 text-center tracking-wider"
           >
             💕 A Escolha do Enamorado
           </h2>
           <p
             id="choice-modal-description"
-            className="text-sm text-slate-400 text-center"
+            className="text-sm text-slate-200 text-center leading-relaxed"
           >
-            Selecione uma carta para adicionar à sua coleção. Use as setas ou Tab para navegar. Pressione Escape para sair.
+            Selecione uma carta para adicionar à sua coleção.
+            <br />
+            <span className="text-xs text-slate-300">Use Tab ou Setas para navegar • Enter para confirmar • Escape para sair</span>
           </p>
         </div>
 
         {/* Card Selection Grid */}
-        <div className="p-6">
+        <div className="p-6 bg-slate-900/50">
           <div
             role="group"
             aria-label="Opções de cartas disponíveis"
@@ -96,29 +98,33 @@ const ChoiceModal: React.FC<ChoiceModalProps> = ({ cards, onSelect }) => {
                     className={`
                       group relative p-4 rounded-lg border-2 transition-all duration-200
                       ${isSelected
-                        ? 'border-rose-500 bg-rose-500/10 ring-2 ring-rose-400/50 shadow-[0_0_15px_rgba(244,63,94,0.3)]'
-                        : 'border-slate-700/50 bg-slate-800/30 hover:border-rose-400/50 hover:bg-slate-800/50'
+                        ? 'border-rose-400 bg-rose-600/20 ring-2 ring-rose-400 shadow-[0_0_20px_rgba(251,113,133,0.5)]'
+                        : 'border-rose-600/60 bg-slate-700 hover:border-rose-400 hover:bg-slate-650 hover:shadow-[0_0_10px_rgba(251,113,133,0.3)]'
                       }
                       focus:outline-2 focus:outline-offset-2 focus:outline-rose-400
-                      min-h-[140px] flex flex-col justify-between cursor-pointer
+                      min-h-[150px] flex flex-col justify-between cursor-pointer
                     `}
                   >
                     {/* Checkmark indicator */}
                     {isSelected && (
                       <div
-                        className="absolute top-2 right-2 w-6 h-6 bg-rose-500 rounded-full flex items-center justify-center animate-pulse"
+                        className="absolute top-2 right-2 w-7 h-7 bg-rose-500 rounded-full flex items-center justify-center animate-pulse shadow-lg"
                         aria-hidden="true"
                       >
-                        <span className="text-white text-sm">✓</span>
+                        <span className="text-white text-sm font-bold">✓</span>
                       </div>
                     )}
 
                     {/* Card content */}
                     <div className="flex-1">
-                      <div className="text-lg font-bold text-rose-300 mb-1 group-hover:text-rose-200 transition-colors">
+                      <div className={`text-lg font-bold mb-2 transition-colors ${
+                        isSelected ? 'text-rose-200' : 'text-rose-300 group-hover:text-rose-200'
+                      }`}>
                         {card.name}
                       </div>
-                      <p className="text-xs text-slate-400 line-clamp-3 group-hover:text-slate-300 transition-colors">
+                      <p className={`text-sm leading-relaxed transition-colors line-clamp-3 ${
+                        isSelected ? 'text-slate-100' : 'text-slate-300 group-hover:text-slate-200'
+                      }`}>
                         {card.effect || 'Sem descrição'}
                       </p>
                     </div>
@@ -126,7 +132,7 @@ const ChoiceModal: React.FC<ChoiceModalProps> = ({ cards, onSelect }) => {
                     {/* Mark count indicator */}
                     {card.marks && card.marks.length > 0 && (
                       <div
-                        className="mt-2 text-xs font-medium text-rose-200 bg-rose-500/20 px-2 py-1 rounded w-fit"
+                        className="mt-3 text-xs font-semibold text-rose-100 bg-rose-600/40 px-3 py-1 rounded-md w-fit border border-rose-500/50"
                         aria-label={`${card.marks.length} marca${card.marks.length !== 1 ? 's' : ''} hereditária${card.marks.length !== 1 ? 's' : ''}`}
                       >
                         ✨ {card.marks.length} marca{card.marks.length !== 1 ? 's' : ''}
@@ -147,7 +153,7 @@ const ChoiceModal: React.FC<ChoiceModalProps> = ({ cards, onSelect }) => {
         </div>
 
         {/* Footer with buttons */}
-        <div className="p-4 bg-slate-950/50 border-t border-rose-700/20 flex gap-3 justify-end">
+        <div className="p-4 bg-slate-800/80 border-t border-rose-600/40 flex gap-3 justify-end">
           <Tooltip
             id="choice-cancel-tooltip"
             text="Cancelar seleção (Escape)"
@@ -157,9 +163,9 @@ const ChoiceModal: React.FC<ChoiceModalProps> = ({ cards, onSelect }) => {
               onClick={() => onSelect(cards[Math.floor(Math.random() * cards.length)])}
               aria-label="Cancelar a seleção e fechar o diálogo"
               className="
-                px-4 py-2 rounded-lg font-medium text-slate-300
-                border border-slate-700 hover:border-slate-600 hover:bg-slate-700/30
-                transition-all duration-200 focus:outline-2 focus:outline-offset-2 focus:outline-slate-400
+                px-4 py-2 rounded-lg font-medium text-slate-100
+                border border-slate-500 bg-slate-700 hover:border-slate-400 hover:bg-slate-600
+                transition-all duration-200 focus:outline-2 focus:outline-offset-2 focus:outline-slate-300
               "
             >
               Cancelar
@@ -180,8 +186,8 @@ const ChoiceModal: React.FC<ChoiceModalProps> = ({ cards, onSelect }) => {
                 px-6 py-2 rounded-lg font-bold transition-all duration-200
                 focus:outline-2 focus:outline-offset-2
                 ${isConfirmDisabled
-                  ? 'bg-rose-500/30 text-rose-300/50 border border-rose-500/30 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-rose-500 to-rose-600 text-white hover:from-rose-600 hover:to-rose-700 border border-rose-400/50 focus:outline-rose-400 shadow-lg hover:shadow-rose-500/20'
+                  ? 'bg-rose-600/40 text-rose-100/70 border border-rose-600/60 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-rose-500 to-rose-600 text-white hover:from-rose-600 hover:to-rose-700 border border-rose-400 focus:outline-rose-300 shadow-lg hover:shadow-rose-500/30'
                 }
               `}
             >
