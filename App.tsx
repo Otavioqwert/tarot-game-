@@ -316,6 +316,12 @@ const App: React.FC = () => {
   const handleCardChoice = (chosenCard: Card) => {
     if (!cardChoice) return;
     
+    // Safety check: ensure cardChoice.cards exists and is an array
+    if (!Array.isArray(cardChoice.cards) || cardChoice.cards.length === 0) {
+      console.warn('Invalid cardChoice.cards');
+      return;
+    }
+    
     setInventory(prev => [...prev, createCardInstance(chosenCard)]);
     
     const newSlots = [...slots];
@@ -346,6 +352,13 @@ const App: React.FC = () => {
 
   const handleConfirmHangedManSacrifice = (sacrificed: CardInstance[]) => {
     if (!hangedManState) return;
+    
+    // Safety check: ensure sacrificed is an array
+    if (!Array.isArray(sacrificed)) {
+      console.warn('Invalid sacrificed array');
+      return;
+    }
+    
     const n = sacrificed.length;
     if (n > 0) {
       const payout = ((n + 1) * n / 2) * 50;
@@ -371,7 +384,7 @@ const App: React.FC = () => {
   };
 
   const handleConfirmDevilSacrifice = (selected: { cardInstanceId: string; markIndex: number }[]) => {
-    if (!devilSacrificeState || selected.length === 0) return;
+    if (!devilSacrificeState || !Array.isArray(selected) || selected.length === 0) return;
 
     const newSlots = [...slots];
     const rewards: string[] = [];
@@ -482,14 +495,14 @@ const App: React.FC = () => {
         setGlobalHours(state.gh);
         setTickRate(state.tr);
         setPermanentSyncBonus(state.psb);
-        setInventory(state.inv.map(fromSavedCard));
-        setSlots(prevSlots => state.sl.map((sc, i) => ({
+        setInventory(state.inv?.map(fromSavedCard) || []);
+        setSlots(prevSlots => (state.sl || []).map((sc, i) => ({
             position: prevSlots[i]?.position ?? i as (0|1|2|3),
             card: sc ? fromSavedCard(sc) : null,
             syncPercentage: 0 // Will be recalculated
         })));
-        setPendingPayouts(state.pp);
-        setGlobalBuffs(state.gb);
+        setPendingPayouts(state.pp || []);
+        setGlobalBuffs(state.gb || []);
         
         setSaveLoadModal({ isOpen: false, mode: 'load' });
         alert('Jogo carregado com sucesso!');
