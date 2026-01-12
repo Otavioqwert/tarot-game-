@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   CycleState, ShopItem, Card, CircleSlot, Rarity, ItemType, CardInstance, GlobalBuff, PendingPayout, SaveState, SavedCardInstance
@@ -16,6 +15,7 @@ import Shop from './components/Shop';
 import Inventory from './components/Inventory';
 import ChoiceModal from './components/ChoiceModal';
 import HangedManSacrifice from './components/HangedManSacrifice';
+import TheDevilModal from './components/TheDevilModal';
 import SynergyDisplay from './components/SynergyDisplay';
 import SaveLoadModal from './components/SaveLoadModal';
 
@@ -34,6 +34,7 @@ const App: React.FC = () => {
   const [cardChoice, setCardChoice] = useState<{ cards: Card[], sourceSlot: number, extraChoices: number } | null>(null);
   const [isRestocking, setIsRestocking] = useState(false);
   const [hangedManState, setHangedManState] = useState<{ isOpen: boolean; sourceSlot: number; sacrificedCards: CardInstance[]; } | null>(null);
+  const [devilSacrificeState, setDevilSacrificeState] = useState<{ isOpen: boolean; sourceSlot: number } | null>(null);
   const [synergyResourceRate, setSynergyResourceRate] = useState(0);
   const [saveLoadModal, setSaveLoadModal] = useState<{ isOpen: boolean; mode: 'save' | 'load'; code?: string }>({ isOpen: false, mode: 'save' });
 
@@ -296,6 +297,11 @@ const App: React.FC = () => {
           return;
       }
       
+      if (cardData.effectId === 'THE_DEVIL') {
+          setDevilSacrificeState({ isOpen: true, sourceSlot: slotIndex });
+          return;
+      }
+      
       activateCardEffect(slotIndex, slots, {
           globalHours, globalSync, slots, activeSynergies,
           setSlots, setInventory, setCurrency, setGlobalHours, setGlobalBuffs, setPendingPayouts, setTickRate, setSynergyResourceRate
@@ -364,6 +370,59 @@ const App: React.FC = () => {
     setHangedManState(null);
   };
 
+  const handleConfirmDevilSacrifice = (selected: { cardInstanceId: string; markIndex: number }[]) => {
+    if (!devilSacrificeState || selected.length === 0) return;
+
+    const newSlots = [...slots];
+    const rewards: string[] = [];
+
+    // Process each sacrificed mark
+    selected.forEach(({ cardInstanceId, markIndex }) => {
+      // Find the card instance in the circle
+      let foundCard = false;
+      newSlots.forEach(slot => {
+        if (slot.card?.instanceId === cardInstanceId) {
+          // Remove the mark
+          if (slot.card.marks && slot.card.marks[markIndex]) {
+            slot.card.marks.splice(markIndex, 1);
+            foundCard = true;
+
+            // Apply curse
+            const curseTypes = ['ISOLATED', 'VOLATILE', 'TEMPORAL'] as const;
+            const curseType = curseTypes[Math.floor(Math.random() * curseTypes.length)];
+            slot.card.curse = {
+              id: `curse-${Date.now()}-${Math.random()}`,
+              type: curseType,
+            };
+
+            // Generate reward (50% chance of double reward)
+            const rewardCount = Math.random() < 0.5 ? 2 : 1;
+            for (let r = 0; r < rewardCount; r++) {
+              const rewardType = Math.random();
+              if (rewardType < 0.33) {
+                rewards.push('+250 Recursos 💰');
+                setCurrency(c => c + 250);
+              } else if (rewardType < 0.66) {
+                rewards.push('+5 Sync Permanente ⚡');
+                setPermanentSyncBonus(p => p + 5);
+              } else {
+                rewards.push('+1 Multiplicador 📈');
+                // Increase The Devil's effect multiplier
+                const devilCard = newSlots[devilSacrificeState.sourceSlot].card;
+                if (devilCard) {
+                  devilCard.effectMultiplier = (devilCard.effectMultiplier || 1) + 1;
+                }
+              }
+            }
+          }
+        }
+      });
+    });
+
+    setSlots(newSlots);
+    setDevilSacrificeState(null);
+  };
+
     // --- Save/Load Logic ---
     const toSavedCard = (card: CardInstance): SavedCardInstance => ({
         cid: card.cardId,
@@ -375,6 +434,9 @@ const App: React.FC = () => {
         ...(card.justiceBonus && { jb: card.justiceBonus }),
         ...(card.towerCycles && { tc: card.towerCycles }),
         ...(card.effectMultiplier && { em: card.effectMultiplier }),
+        ...(card.hangedManActive && { hma: card.hangedManActive }),
+        ...(card.hangedManConsumes && { hmc: card.hangedManConsumes }),
+        ...(card.hangedManActivatedAt && { hmaa: card.hangedManActivatedAt }),
     });
 
     const fromSavedCard = (saved: SavedCardInstance): CardInstance => ({
@@ -387,6 +449,9 @@ const App: React.FC = () => {
         justiceBonus: saved.jb,
         towerCycles: saved.tc,
         effectMultiplier: saved.em,
+        hangedManActive: saved.hma,
+        hangedManConsumes: saved.hmc,
+        hangedManActivatedAt: saved.hmaa,
     });
   
     const handleExport = () => {
@@ -502,6 +567,13 @@ const App: React.FC = () => {
           inventory={inventory}
           onConfirm={handleConfirmHangedManSacrifice}
           onCancel={() => setHangedManState(null)}
+        />
+      )}
+      {devilSacrificeState?.isOpen && (
+        <TheDevilModal
+          inventory={inventory}
+          onConfirm={handleConfirmDevilSacrifice}
+          onCancel={() => setDevilSacrificeState(null)}
         />
       )}
       
