@@ -4,9 +4,9 @@ import { TAROT_LIBRARY, LUNAR_MAX } from '../constants';
 
 interface TooltipProps {
   card: Card;
-  slotIndex: number;
-  slots: CircleSlot[];
-  globalHours: number;
+  slotIndex?: number;
+  slots?: CircleSlot[];
+  globalHours?: number;
 }
 
 interface EffectTag {
@@ -101,10 +101,13 @@ const getAdjacentCards = (
 
 const buildLiveSummary = (
   card: Card,
-  slotIndex: number,
-  slots: CircleSlot[],
-  globalHours: number
+  slotIndex?: number,
+  slots?: CircleSlot[],
+  globalHours?: number
 ): string[] => {
+  // Sem contexto do círculo/tempo (ex: inventário), não mostra resumo dinâmico
+  if (slotIndex === undefined || !slots || globalHours === undefined) return [];
+
   const lines: string[] = [];
   const instance = slots[slotIndex]?.card || null;
   const { left, right } = getAdjacentCards(slots, slotIndex);
@@ -167,7 +170,6 @@ const buildLiveSummary = (
       break;
     }
     default: {
-      // Algumas cartas podem não precisar de resumo dinâmico
       if (instance?.cooldownUntil && instance.cooldownUntil > globalHours) {
         lines.push(`Em recarga por mais ${instance.cooldownUntil - globalHours} ciclos.`);
       }
