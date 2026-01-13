@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { CircleSlot, CardInstance } from '../types';
 import { TAROT_LIBRARY, BLANK_CARD_DATA, LUNAR_MAX } from '../constants';
 import { cardHandlers } from '../effects';
+import { ActiveSynergy } from '../synergies';
 import CardTooltip from './CardTooltip';
 
 interface CardCircleProps {
@@ -11,6 +12,7 @@ interface CardCircleProps {
   onActivate: (index: number) => void;
   selectedCardIndex: number | null;
   globalHours: number;
+  activeSynergies: ActiveSynergy[];
 }
 
 interface Interaction {
@@ -25,7 +27,7 @@ const getCardData = (instance?: CardInstance | null) => {
     return TAROT_LIBRARY.find(c => c.id === instance.cardId);
 }
 
-const CardCircle: React.FC<CardCircleProps> = ({ slots, onRemove, onPlace, onActivate, selectedCardIndex, globalHours }) => {
+const CardCircle: React.FC<CardCircleProps> = ({ slots, onRemove, onPlace, onActivate, selectedCardIndex, globalHours, activeSynergies }) => {
   const R = slots.length === 4 ? 140 : 130;
   const cardScale = slots.length === 4 ? 'scale(0.95)' : 'scale(1)';
 
@@ -93,6 +95,11 @@ const CardCircle: React.FC<CardCircleProps> = ({ slots, onRemove, onPlace, onAct
         const isActivatable = cardData?.effectId && cardHandlers[cardData.effectId]?.onActivate;
         const isOnCooldown = slot.card?.cooldownUntil && slot.card.cooldownUntil > globalHours;
 
+        const effectId = cardData?.effectId;
+        const synergiesForThisCard = effectId
+          ? activeSynergies.filter(s => s.cards.includes(effectId))
+          : [];
+
         let passiveCooldownProgress: { progress: number, color: string } | null = null;
         if (cardData?.effectId) {
             switch (cardData.effectId) {
@@ -130,6 +137,7 @@ const CardCircle: React.FC<CardCircleProps> = ({ slots, onRemove, onPlace, onAct
                 slotIndex={i}
                 slots={slots}
                 globalHours={globalHours}
+                activeSynergies={activeSynergies}
               />
             )}
 
@@ -164,6 +172,26 @@ const CardCircle: React.FC<CardCircleProps> = ({ slots, onRemove, onPlace, onAct
                       </div>
                     ))}
                   </div>
+
+                  {/* Badges de sinergia */}
+                  {synergiesForThisCard.length > 0 && (
+                    <div className="absolute top-1 right-1 flex gap-0.5 z-20">
+                      {synergiesForThisCard.map(s => (
+                        <span
+                          key={s.id}
+                          className={`text-[9px] px-1 py-0.5 rounded-full border ${
+                            s.isEmpowered
+                              ? 'bg-amber-500/80 border-amber-300 text-black'
+                              : 'bg-indigo-900/80 border-indigo-400/60 text-indigo-100'
+                          }`}
+                          title={`${s.name} ${s.isEmpowered ? '(Empoderada)' : ''}`}
+                        >
+                          {s.icon}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
                   {cardData.imageUrl !== 'about:blank' ? (
                     <img src={cardData.imageUrl} alt={cardData.name} className="w-full h-full object-cover absolute top-0 left-0" />
                   ) : (
@@ -196,7 +224,7 @@ const CardCircle: React.FC<CardCircleProps> = ({ slots, onRemove, onPlace, onAct
             </div>
           </div>
         )
-      })}
+      })})
     </div>
   );
 };

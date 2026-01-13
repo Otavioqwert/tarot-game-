@@ -1,12 +1,14 @@
 import React, { useMemo } from 'react';
 import { Card, CircleSlot, CardInstance } from '../types';
 import { TAROT_LIBRARY, LUNAR_MAX } from '../constants';
+import { ActiveSynergy } from '../synergies';
 
 interface TooltipProps {
   card: Card;
   slotIndex?: number;
   slots?: CircleSlot[];
   globalHours?: number;
+  activeSynergies?: ActiveSynergy[];
 }
 
 interface EffectTag {
@@ -18,11 +20,9 @@ const parseEffectForTags = (card: Card): EffectTag[] => {
   const tags: EffectTag[] = [];
   const effect = card.effect.toLowerCase();
 
-  // Basic stats
   tags.push({ text: card.element, type: 'element' });
   tags.push({ text: `Sync: ${card.syncType}`, type: 'sync' });
 
-  // Numerical buffs
   if (effect.includes('+1 soma numérica')) {
     tags.push({ text: '+1 Efeito', type: 'buff' });
   }
@@ -31,17 +31,14 @@ const parseEffectForTags = (card: Card): EffectTag[] => {
     percentMatches.forEach(match => tags.push({ text: match, type: 'sync' }));
   }
 
-  // Resource generation
   if (effect.includes('recursos') || effect.includes('aether')) {
     tags.push({ text: 'Gera ✨', type: 'resource' });
   }
 
-  // Time manipulation
   if (effect.includes('ciclos') || effect.includes('cooldown')) {
     tags.push({ text: 'Tempo ⌛', type: 'time' });
   }
 
-  // Meta effects
   if (effect.includes('copia') || effect.includes('replica')) {
     tags.push({ text: 'Cópia', type: 'meta' });
   }
@@ -55,7 +52,6 @@ const parseEffectForTags = (card: Card): EffectTag[] => {
     tags.push({ text: 'Equaliza', type: 'meta' });
   }
   
-  // Specific card effects
   if (card.effectId === 'THE_EMPEROR') {
       tags.push({ text: '+Sinergia', type: 'buff' });
   }
@@ -66,8 +62,7 @@ const parseEffectForTags = (card: Card): EffectTag[] => {
       tags.push({ text: 'Escolha', type: 'meta' });
   }
 
-
-  return tags.slice(0, 4); // Limit to 4 tags for cleanliness
+  return tags.slice(0, 4);
 };
 
 const getTagClasses = (type: EffectTag['type']): string => {
@@ -105,7 +100,6 @@ const buildLiveSummary = (
   slots?: CircleSlot[],
   globalHours?: number
 ): string[] => {
-  // Sem contexto do círculo/tempo (ex: inventário), não mostra resumo dinâmico
   if (slotIndex === undefined || !slots || globalHours === undefined) return [];
 
   const lines: string[] = [];
@@ -180,32 +174,95 @@ const buildLiveSummary = (
   return lines;
 };
 
-const CardTooltip: React.FC<TooltipProps> = ({ card, slotIndex, slots, globalHours }) => {
+const CardTooltip: React.FC<TooltipProps> = ({ card, slotIndex, slots, globalHours, activeSynergies = [] }) => {
   const tags = useMemo(() => parseEffectForTags(card), [card]);
   const liveSummary = useMemo(
     () => buildLiveSummary(card, slotIndex, slots, globalHours),
     [card, slotIndex, slots, globalHours]
   );
 
+  const effectId = card.effectId;
+  const synergiesForThisCard = effectId
+    ? activeSynergies.filter(s => s.cards.includes(effectId))
+    : [];
+
+  const instance = slotIndex !== undefined && slots ? slots[slotIndex]?.card : null;
+
   return (
     <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-max flex flex-col items-center
                     opacity-0 invisible group-hover:opacity-100 group-hover:visible 
                     transition-opacity duration-200 pointer-events-none z-20">
-      <div className="flex flex-col bg-slate-950/90 border border-slate-700 p-1.5 rounded-lg shadow-lg backdrop-blur-sm">
-        <div className="flex space-x-1">
+      <div className="flex flex-col bg-slate-950/90 border border-slate-700 p-2 rounded-lg shadow-lg backdrop-blur-sm max-w-xs">
+        {/* Tags */}
+        <div className="flex flex-wrap gap-1 mb-2">
           {tags.map((tag) => (
             <span key={tag.text} className={`text-[9px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider ${getTagClasses(tag.type)}`}>
               {tag.text}
             </span>
           ))}
         </div>
+
+        {/* Live Summary */}
         {liveSummary.length > 0 && (
-          <div className="mt-1 px-1">
+          <div className="border-t border-slate-700/50 pt-1 mb-1">
             {liveSummary.map((line, idx) => (
-              <div key={idx} className="text-[9px] text-slate-200 whitespace-nowrap">
+              <div key={idx} className="text-[9px] text-slate-200 leading-tight">
                 {line}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Estado Interno */}
+        {(instance?.effectMultiplier || instance?.cooldownUntil || instance?.justiceBonus !== undefined || instance?.hangedManActive || instance?.towerArcanoActive || (instance?.marks && instance.marks.length > 0)) && (
+          <div className="border-t border-slate-700/50 pt-1 mb-1 space-y-0.5 text-[9px] text-slate-300">
+            {instance?.effectMultiplier && instance.effectMultiplier > 1 && (
+              <div>🔥 Multiplicador: {instance.effectMultiplier}x</div>
+            )}
+            
+            {instance?.cooldownUntil && globalHours && (
+              <div>⏱️ Cooldown: {Math.max(0, instance.cooldownUntil - globalHours)}h</div>
+            )}
+            
+            {instance?.justiceBonus !== undefined && globalHours && (
+              <div>⚖️ Bônus: +{instance.justiceBonus}% (próxima em {globalHours ? (7 - (globalHours % 7)) : '?'}h)</div>
+            )}
+            
+            {instance?.hangedManActive && (
+              <div>🪢 Sacrifício ativo ({instance.hangedManConsumes || 0} cartas)</div>
+            )}
+            
+            {instance?.towerArcanoActive && (
+              <div>💥 Arcano Maior: {instance.towerArcanoCycles} ciclos</div>
+            )}
+            
+            {instance?.marks && instance.marks.length > 0 && (
+              <div className="flex gap-1 flex-wrap">
+                {instance.marks.map((m, i) => (
+                  <span key={i} className="bg-purple-900/60 px-1 rounded text-[8px]">
+                    {m.icon} {m.name}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Sinergias */}
+        {synergiesForThisCard.length > 0 && (
+          <div className="border-t border-slate-700/50 pt-1">
+            <div className="text-[9px] text-indigo-300 mb-1 font-bold">Sinergias:</div>
+            <div className="flex gap-1 flex-wrap">
+              {synergiesForThisCard.map(s => (
+                <span key={s.id} className={`text-[8px] px-1.5 py-0.5 rounded border ${
+                  s.isEmpowered
+                    ? 'bg-amber-900/80 border-amber-500/60 text-amber-200'
+                    : 'bg-indigo-900/80 border-indigo-500/60 text-indigo-200'
+                }`}>
+                  {s.icon} {s.name}
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </div>
