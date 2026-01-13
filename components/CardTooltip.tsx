@@ -1,8 +1,12 @@
 import React, { useMemo } from 'react';
-import { Card } from '../types';
+import { Card, CircleSlot, CardInstance } from '../types';
+import { TAROT_LIBRARY, LUNAR_MAX } from '../constants';
 
 interface TooltipProps {
   card: Card;
+  slotIndex: number;
+  slots: CircleSlot[];
+  globalHours: number;
 }
 
 interface EffectTag {
@@ -79,19 +83,129 @@ const getTagClasses = (type: EffectTag['type']): string => {
   }
 };
 
-const CardTooltip: React.FC<TooltipProps> = ({ card }) => {
+const getCardName = (instance: CardInstance | null | undefined): string => {
+  if (!instance) return 'Vazio';
+  const data = TAROT_LIBRARY.find(c => c.id === instance.cardId);
+  return data?.name || 'Desconhecido';
+};
+
+const getAdjacentCards = (
+  slots: CircleSlot[],
+  index: number
+): { left: CardInstance | null; right: CardInstance | null } => {
+  const n = slots.length;
+  const left = n > 0 ? slots[(index - 1 + n) % n].card || null : null;
+  const right = n > 0 ? slots[(index + 1) % n].card || null : null;
+  return { left, right };
+};
+
+const buildLiveSummary = (
+  card: Card,
+  slotIndex: number,
+  slots: CircleSlot[],
+  globalHours: number
+): string[] => {
+  const lines: string[] = [];
+  const instance = slots[slotIndex]?.card || null;
+  const { left, right } = getAdjacentCards(slots, slotIndex);
+
+  switch (card.effectId) {
+    case 'THE_EMPRESS': {
+      lines.push(`Copia o ciclo da carta à direita: ${getCardName(right)}.`);
+      break;
+    }
+    case 'THE_MAGICIAN': {
+      lines.push(`Dobra recursos e sincronia da carta à direita: ${getCardName(right)}.`);
+      break;
+    }
+    case 'STRENGTH': {
+      if (!left && !right) {
+        lines.push('Sem alvos adjacentes no momento.');
+      } else {
+        lines.push(`Fortalece cartas adjacentes: esquerda ${getCardName(left)}, direita ${getCardName(right)}.`);
+      }
+      break;
+    }
+    case 'JUDGEMENT': {
+      if (!left && !right) {
+        lines.push('Sem alvos adjacentes para replicar.');
+      } else {
+        lines.push(`Replica 50% dos adjacentes (esq: ${getCardName(left)}, dir: ${getCardName(right)}) e reduz esses alvos em 25%.`);
+      }
+      break;
+    }
+    case 'DEATH': {
+      const hoursInMoon = globalHours % LUNAR_MAX;
+      const cyclesToNewMoonRaw = hoursInMoon === 0 && globalHours > 0 ? 0 : (LUNAR_MAX - hoursInMoon) % LUNAR_MAX;
+      const cyclesToNewMoon = cyclesToNewMoonRaw === 0 && globalHours > 0 ? LUNAR_MAX : cyclesToNewMoonRaw;
+      lines.push(`Na próxima Lua Nova em ~${cyclesToNewMoon || LUNAR_MAX} ciclos consumirá a carta à esquerda: ${getCardName(left)}.`);
+      break;
+    }
+    case 'JUSTICE': {
+      const hourInMoon = globalHours % LUNAR_MAX;
+      const mod = hourInMoon % 7;
+      const cyclesToNext = (7 - mod) % 7;
+      const effective = cyclesToNext === 0 && hourInMoon > 0 ? 7 : cyclesToNext || 7;
+      lines.push(`Próximo ganho de 25 ✨ e +1% Sync em ~${effective} ciclos lunares.`);
+      break;
+    }
+    case 'THE_TOWER': {
+      const mod = globalHours % 8;
+      const cyclesToReorgRaw = (8 - mod) % 8;
+      const cyclesToReorg = cyclesToReorgRaw === 0 && globalHours > 0 ? 8 : cyclesToReorgRaw || 8;
+      lines.push(`Reorganiza o círculo em ~${cyclesToReorg} ciclos.`);
+      lines.push('15% de chance de ativar modo Arcano Maior ao reorganizar.');
+      break;
+    }
+    case 'WHEEL_OF_FORTUNE': {
+      const markedCards = slots.filter(s => s.card?.marks && s.card.marks.length > 0).length;
+      if (markedCards > 0) {
+        lines.push(`Afeta ${markedCards} carta(s) marcada(s), multiplicando recursos conforme Sync global.`);
+      } else {
+        lines.push('Nenhuma marca ativa no círculo; aguardando marcas para amplificar recursos.');
+      }
+      break;
+    }
+    default: {
+      // Algumas cartas podem não precisar de resumo dinâmico
+      if (instance?.cooldownUntil && instance.cooldownUntil > globalHours) {
+        lines.push(`Em recarga por mais ${instance.cooldownUntil - globalHours} ciclos.`);
+      }
+      break;
+    }
+  }
+
+  return lines;
+};
+
+const CardTooltip: React.FC<TooltipProps> = ({ card, slotIndex, slots, globalHours }) => {
   const tags = useMemo(() => parseEffectForTags(card), [card]);
+  const liveSummary = useMemo(
+    () => buildLiveSummary(card, slotIndex, slots, globalHours),
+    [card, slotIndex, slots, globalHours]
+  );
 
   return (
     <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-max flex flex-col items-center
                     opacity-0 invisible group-hover:opacity-100 group-hover:visible 
                     transition-opacity duration-200 pointer-events-none z-20">
-      <div className="flex space-x-1 bg-slate-950/90 border border-slate-700 p-1.5 rounded-lg shadow-lg backdrop-blur-sm">
-        {tags.map((tag) => (
-          <span key={tag.text} className={`text-[9px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider ${getTagClasses(tag.type)}`}>
-            {tag.text}
-          </span>
-        ))}
+      <div className="flex flex-col bg-slate-950/90 border border-slate-700 p-1.5 rounded-lg shadow-lg backdrop-blur-sm">
+        <div className="flex space-x-1">
+          {tags.map((tag) => (
+            <span key={tag.text} className={`text-[9px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider ${getTagClasses(tag.type)}`}>
+              {tag.text}
+            </span>
+          ))}
+        </div>
+        {liveSummary.length > 0 && (
+          <div className="mt-1 px-1">
+            {liveSummary.map((line, idx) => (
+              <div key={idx} className="text-[9px] text-slate-200 whitespace-nowrap">
+                {line}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       <div className="w-2 h-2 bg-slate-950 border-b border-r border-slate-700 transform rotate-45 -mt-1"/>
     </div>
