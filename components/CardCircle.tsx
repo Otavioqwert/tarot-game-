@@ -124,7 +124,14 @@ const CardCircle: React.FC<CardCircleProps> = ({ slots, onRemove, onPlace, onAct
             }}
             className="absolute w-20 h-32 rounded-lg flex items-center justify-center group z-10"
           >
-            {cardData && <CardTooltip card={cardData} />}
+            {cardData && (
+              <CardTooltip
+                card={cardData}
+                slotIndex={i}
+                slots={slots}
+                globalHours={globalHours}
+              />
+            )}
 
             {passiveCooldownProgress && (
               <svg className="absolute w-[100px] h-[100px] pointer-events-none" viewBox="-50 -50 100 100">
