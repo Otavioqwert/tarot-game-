@@ -27,47 +27,52 @@ const getCardData = (instance?: CardInstance | null) => {
     return TAROT_LIBRARY.find(c => c.id === instance.cardId);
 }
 
-const CardCircle: React.FC<CardCircleProps> = ({ slots, onRemove, onPlace, onActivate, selectedCardIndex, globalHours, activeSynergies }) => {
-  const R = slots.length === 4 ? 140 : 130;
-  const cardScale = slots.length === 4 ? 'scale(0.95)' : 'scale(1)';
+const CardCircle: React.FC<CardCircleProps> = ({ slots = [], onRemove, onPlace, onActivate, selectedCardIndex, globalHours, activeSynergies = [] }) => {
+  // Safety: ensure slots is an array
+  const safeSlots = Array.isArray(slots) ? slots : [];
+  const R = safeSlots.length === 4 ? 140 : 130;
+  const cardScale = safeSlots.length === 4 ? 'scale(0.95)' : 'scale(1)';
 
   const getPos = (angleDeg: number) => ({ x: R * Math.cos((angleDeg * Math.PI) / 180), y: R * Math.sin((angleDeg * Math.PI) / 180) });
   
   const positions = useMemo(() => {
-    if (slots.length === 4) {
+    if (safeSlots.length === 4) {
       return [ getPos(-90), getPos(0), getPos(90), getPos(180) ];
     }
     return [ getPos(-90), getPos(30), getPos(150) ];
-  }, [slots.length, R]);
+  }, [safeSlots.length, R]);
 
   const interactions = useMemo<Interaction[]>(() => {
+    if (!Array.isArray(safeSlots) || safeSlots.length === 0) return [];
+    
     const activeInteractions: Interaction[] = [];
-    slots.forEach((slot, i) => {
+    safeSlots.forEach((slot, i) => {
+      if (!slot) return;
       const cardData = getCardData(slot.card);
       if (!cardData || !cardData.effectId) return;
 
-      const rightIdx = (i + 1) % slots.length;
-      const leftIdx = (i + slots.length - 1) % slots.length;
+      const rightIdx = (i + 1) % safeSlots.length;
+      const leftIdx = (i + safeSlots.length - 1) % safeSlots.length;
 
       switch (cardData.effectId) {
         case 'THE_MAGICIAN':
-          if (slots[rightIdx].card) activeInteractions.push({ from: i, to: rightIdx, color: '#f59e0b' });
+          if (safeSlots[rightIdx]?.card) activeInteractions.push({ from: i, to: rightIdx, color: '#f59e0b' });
           break;
         case 'STRENGTH':
-          if (slots[rightIdx].card) activeInteractions.push({ from: i, to: rightIdx, color: '#ef4444' });
-          if (slots[leftIdx].card) activeInteractions.push({ from: i, to: leftIdx, color: '#ef4444' });
+          if (safeSlots[rightIdx]?.card) activeInteractions.push({ from: i, to: rightIdx, color: '#ef4444' });
+          if (safeSlots[leftIdx]?.card) activeInteractions.push({ from: i, to: leftIdx, color: '#ef4444' });
           break;
         case 'JUDGEMENT':
-          if (slots[rightIdx].card) activeInteractions.push({ from: i, to: rightIdx, color: '#60a5fa' });
-          if (slots[leftIdx].card) activeInteractions.push({ from: i, to: leftIdx, color: '#60a5fa' });
+          if (safeSlots[rightIdx]?.card) activeInteractions.push({ from: i, to: rightIdx, color: '#60a5fa' });
+          if (safeSlots[leftIdx]?.card) activeInteractions.push({ from: i, to: leftIdx, color: '#60a5fa' });
           break;
         case 'DEATH':
-          if (slots[leftIdx].card) activeInteractions.push({ from: i, to: leftIdx, color: '#a855f7' });
+          if (safeSlots[leftIdx]?.card) activeInteractions.push({ from: i, to: leftIdx, color: '#a855f7' });
           break;
       }
     });
     return activeInteractions;
-  }, [slots]);
+  }, [safeSlots]);
 
   return (
     <div className="relative w-[360px] h-[360px] flex items-center justify-center">
@@ -89,14 +94,16 @@ const CardCircle: React.FC<CardCircleProps> = ({ slots, onRemove, onPlace, onAct
         ))}
       </svg>
 
-      {slots.map((slot, i) => {
+      {safeSlots.map((slot, i) => {
+        if (!slot) return null;
+        
         const cardData = getCardData(slot.card);
         const isPlacing = selectedCardIndex !== null && (!slot.card || slot.card.isBlank);
         const isActivatable = cardData?.effectId && cardHandlers[cardData.effectId]?.onActivate;
         const isOnCooldown = slot.card?.cooldownUntil && slot.card.cooldownUntil > globalHours;
 
         const effectId = cardData?.effectId;
-        const synergiesForThisCard = effectId
+        const synergiesForThisCard = effectId && Array.isArray(activeSynergies)
           ? activeSynergies.filter(s => s.cards.includes(effectId))
           : [];
 
@@ -135,7 +142,7 @@ const CardCircle: React.FC<CardCircleProps> = ({ slots, onRemove, onPlace, onAct
               <CardTooltip
                 card={cardData}
                 slotIndex={i}
-                slots={slots}
+                slots={safeSlots}
                 globalHours={globalHours}
                 activeSynergies={activeSynergies}
               />
@@ -174,7 +181,7 @@ const CardCircle: React.FC<CardCircleProps> = ({ slots, onRemove, onPlace, onAct
                   </div>
 
                   {/* Badges de sinergia */}
-                  {synergiesForThisCard.length > 0 && (
+                  {Array.isArray(synergiesForThisCard) && synergiesForThisCard.length > 0 && (
                     <div className="absolute top-1 right-1 flex gap-0.5 z-20">
                       {synergiesForThisCard.map(s => (
                         <span
