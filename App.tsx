@@ -5,7 +5,7 @@ import {
 import { 
   TICK_RATE, DAILY_MAX, LUNAR_MAX, SIGN_MAX, TAROT_LIBRARY, ZODIAC_SIGNS, LUNAR_PHASES, DAY_START, DAY_END, BLANK_CARD_DATA
 } from './constants';
-import { processCycle, activateCardEffect, handleRestock } from './effects';
+import { processCycle, activateCardEffect, handleRestock, cardHandlers } from './effects';
 import { calculateComplexSync } from './syncLogic';
 import { getActiveSynergies } from './synergies';
 import { encodeSaveData, decodeSaveData } from './utils/saveManager';
@@ -255,6 +255,37 @@ const App: React.FC = () => {
     const newSlots = [...slots];
     newSlots[slotIdx].card = null;
     setInventory(prev => [...prev, cardInstance]); setSlots(newSlots);
+  };
+  
+  const handleReturnReadyActivations = () => {
+    setSlots(prevSlots => {
+      const newSlots = prevSlots.map(slot => ({ ...slot }));
+      const returning: CardInstance[] = [];
+
+      newSlots.forEach((slot, idx) => {
+        const card = slot.card;
+        if (!card || card.isBlank) return;
+
+        const cardData = TAROT_LIBRARY.find(c => c.id === card.cardId);
+        if (!cardData?.effectId) return;
+
+        const handler = cardHandlers[cardData.effectId];
+        const isActivatable = !!handler?.onActivate;
+        const isOnCooldown = card.cooldownUntil && card.cooldownUntil > globalHours;
+
+        // Só devolve cartas ativáveis e prontas (sem cooldown)
+        if (isActivatable && !isOnCooldown) {
+          returning.push(card);
+          newSlots[idx] = { ...slot, card: null, syncPercentage: 0 };
+        }
+      });
+
+      if (returning.length > 0) {
+        setInventory(prevInv => [...prevInv, ...returning]);
+      }
+
+      return newSlots;
+    });
   };
   
   const handleActivateEffect = (slotIndex: number) => {
@@ -564,6 +595,14 @@ const App: React.FC = () => {
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
               <span className="text-4xl opacity-10 font-mystic text-indigo-500 block uppercase tracking-[0.5em]">{ZODIAC_SIGNS[currentSignIndex].name}</span>
             </div>
+          </div>
+          <div className="mt-2 flex justify-center">
+            <button
+              onClick={handleReturnReadyActivations}
+              className="text-[10px] bg-amber-500/80 hover:bg-amber-400 text-black font-bold px-3 py-1 rounded-full border border-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.5)] transition-colors"
+            >
+              Recolher Arcanos Prontos
+            </button>
           </div>
         </div>
         <div className="lg:col-span-5 flex flex-col space-y-4">
