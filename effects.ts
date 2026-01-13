@@ -105,7 +105,7 @@ const THE_FOOL: CardHandler = {
     const extendedTickRate = TICK_RATE + 30000;
     ctx.setTickRate(extendedTickRate);
 
-    const timerId = setTimeout(() => {
+    setTimeout(() => {
       ctx.setTickRate(originalTickRate);
     }, 12 * extendedTickRate);
 
@@ -121,7 +121,7 @@ const THE_FOOL: CardHandler = {
 
 // 1. THE MAGICIAN - Dobra efeitos que não abranjam recursos ou ampliações à direita
 const THE_MAGICIAN: CardHandler = {
-  onCycle: (ctx) => {
+  onCycle: () => {
     // O efeito dele é aplicado como modificador adjacente no processamento final
     // Aqui ele não gera output direto
     return { resources: 0, sync: 0, timeAdjustment: 0 };
@@ -167,7 +167,7 @@ const THE_EMPRESS: CardHandler = {
 
 // 4. THE EMPEROR - Aumenta em torno de 25% efeitos de sinergia
 const THE_EMPEROR: CardHandler = {
-  onCycle: (ctx) => {
+  onCycle: () => {
     // Bonus é aplicado como multiplicador global durante processamento
     // Aqui não há output direto
     return { resources: 0, sync: 0, timeAdjustment: 0 };
@@ -186,8 +186,6 @@ const THE_HIEROPHANT: CardHandler = {
 // 6. THE LOVERS - Escolha de 2 cartas, deixa carta em branco herdando marcas
 const THE_LOVERS: CardHandler = {
   onActivate: (ctx) => {
-    // Implementação: remover a carta atual e inserir duas opções no inventory
-    // Deixar slot em branco herdando marcas
     const currentMarks = ctx.cardInstance.marks;
 
     const newSlots = [...ctx.slots];
@@ -201,21 +199,15 @@ const THE_LOVERS: CardHandler = {
       },
     };
     ctx.setSlots(newSlots);
-
-    // TODO: UI para escolher entre 2 cartas aleatórias do library
-    // Por enquanto, apenas deixa branco
   },
 };
 
 // 7. THE CHARIOT - Reduz 1 ciclo/dy. 10% chance de reduzir 2 ciclos cooldown
 const THE_CHARIOT: CardHandler = {
   onCycle: (ctx) => {
-    let timeAdjustment = 0;
+    let timeAdjustment = -1;
 
-    // Reduz 1 ciclo naturalmente
-    timeAdjustment = -1;
-
-    // 10% chance de reduzir 2 ciclos de cooldown das cartas no círculo
+    // 10% de chance de reduzir 2 ciclos de cooldown das cartas no círculo
     if (Math.random() < 0.1) {
       const newSlots = [...ctx.slots];
       newSlots.forEach(slot => {
@@ -232,7 +224,7 @@ const THE_CHARIOT: CardHandler = {
 
 // 8. STRENGTH - +1 soma numérica para efeito principal de cartas adjacentes
 const STRENGTH: CardHandler = {
-  onCycle: (ctx) => {
+  onCycle: () => {
     // O efeito dele é aplicado como modificador adjacente
     // Aqui não há output direto
     return { resources: 0, sync: 0, timeAdjustment: 0 };
@@ -251,12 +243,8 @@ const THE_HERMIT: CardHandler = {
 // 10. WHEEL OF FORTUNE - Aumenta efeito em 50% * Sync se marcas ativadas
 const WHEEL_OF_FORTUNE: CardHandler = {
   onCycle: (ctx) => {
-    // Verificar se há marcas ativas
     const hasActiveMarks = ctx.cardInstance.marks && ctx.cardInstance.marks.length > 0;
     if (!hasActiveMarks) return { resources: 0, sync: 0, timeAdjustment: 0 };
-
-    // Pode se auto-ativar: verificar se sua própria condição é cumprida
-    // Modificador é aplicado globalmente durante processamento
     return { resources: 0, sync: 0, timeAdjustment: 0 };
   },
 };
@@ -266,19 +254,17 @@ const JUSTICE: CardHandler = {
   onCycle: (ctx) => {
     let resources = 0;
     let sync = 0;
-    let selfUpdate: Partial<CardInstance> = {};
+    const selfUpdate: Partial<CardInstance> = {};
 
     const hourInMoon = ctx.globalHours % LUNAR_MAX;
 
-    // Reset a cada 168 ciclos
     if (hourInMoon === 0 && ctx.globalHours > 0) {
       selfUpdate.justiceBonus = 0;
     }
 
-    // A cada 7 ciclos
     if (hourInMoon % 7 === 0 && hourInMoon > 0) {
       resources = 25;
-      sync = 0.01; // +1% Sync
+      sync = 0.01;
       const currentBonus = ctx.cardInstance.justiceBonus || 0;
       selfUpdate.justiceBonus = currentBonus + 1;
     }
@@ -295,7 +281,6 @@ const JUSTICE: CardHandler = {
 // 12. THE HANGED MAN - Consome cartas e retorna 50 recursos por carta após 1 lua
 const THE_HANGED_MAN: CardHandler = {
   onActivate: (ctx) => {
-    // Abre altar de sacrifício: marca como consumidor
     const newSlots = [...ctx.slots];
     if (newSlots[ctx.cardIndex].card) {
       newSlots[ctx.cardIndex].card!.hangedManActive = true;
@@ -308,7 +293,6 @@ const THE_HANGED_MAN: CardHandler = {
 
     const hoursSinceActive = ctx.globalHours - (ctx.cardInstance.hangedManActivatedAt || ctx.globalHours);
 
-    // Após 1 lua (168 ciclos)
     if (hoursSinceActive >= LUNAR_MAX) {
       const consumedCount = ctx.cardInstance.hangedManConsumes || 0;
       const resources = 50 * consumedCount;
@@ -336,15 +320,21 @@ const DEATH: CardHandler = {
 
     const newSlots = [...ctx.slots];
     const leftIdx = (ctx.cardIndex - 1 + ctx.slots.length) % ctx.slots.length;
+    const leftCard = newSlots[leftIdx].card;
 
-    // Consome carta à esquerda
-    if (newSlots[leftIdx].card) {
-      const leftCard = newSlots[leftIdx].card;
+    // Sinergia DEATH_TOWER: não consumir Tower
+    const hasDeathTower = ctx.activeSynergies.some(s => s.id === 'DEATH_TOWER');
+    const leftEffectId = leftCard ? getCardData(leftCard)?.effectId : null;
+    if (hasDeathTower && leftEffectId === 'THE_TOWER') {
+      ctx.setSlots(newSlots);
+      return { resources: 0, sync: 0, timeAdjustment: 0 };
+    }
+
+    if (leftCard) {
       const inheritedMarks = leftCard.marks;
 
       newSlots[leftIdx].card = null;
 
-      // Transforma outra carta em Death (herda marcas da consumida)
       const otherIndices = ctx.slots
         .map((_, i) => i)
         .filter(i => i !== ctx.cardIndex && i !== leftIdx && newSlots[i].card);
@@ -367,8 +357,7 @@ const DEATH: CardHandler = {
 
 // 14. TEMPERANCE - Converte numerais para 2 dígitos e equaliza em pares
 const TEMPERANCE: CardHandler = {
-  onCycle: (ctx) => {
-    // Efeito é aplicado no processamento final como equalização
+  onCycle: () => {
     return { resources: 0, sync: 0, timeAdjustment: 0 };
   },
 };
@@ -379,17 +368,14 @@ const THE_DEVIL: CardHandler = {
     const newSlots = [...ctx.slots];
     let consumed = 0;
 
-    // Tentar consumir até 2 marcas de cartas diferentes
     for (let i = 0; i < ctx.slots.length && consumed < 2; i++) {
       if (i === ctx.cardIndex || !newSlots[i].card || newSlots[i].card!.marks.length === 0) {
         continue;
       }
 
-      // Consome marca
       newSlots[i].card!.marks.pop();
       consumed++;
 
-      // Aplica maldição aleatória
       const curseTypes = ['ISOLATED', 'VOLATILE', 'TEMPORAL'] as const;
       const curseType = curseTypes[Math.floor(Math.random() * curseTypes.length)];
       newSlots[i].card!.curse = {
@@ -397,20 +383,16 @@ const THE_DEVIL: CardHandler = {
         type: curseType,
       };
 
-      // Gera recompensa aleatória por marca consumida
-      const chanceDouble = Math.random() < 0.5; // 50% chance de dar 2 recompensas
+      const chanceDouble = Math.random() < 0.5;
       const rewardCount = chanceDouble ? 2 : 1;
 
       for (let r = 0; r < rewardCount; r++) {
         const rewardType = Math.random();
         if (rewardType < 0.33) {
-          // +250 recursos imediatos
           ctx.setCurrency(c => c + 250);
         } else if (rewardType < 0.66) {
-          // +5 sync base permanente
-          // TODO: Implementar no estado global
+          // TODO: sync permanente
         } else {
-          // +1 multiplicador de recursos base para The Devil
           if (newSlots[ctx.cardIndex].card) {
             newSlots[ctx.cardIndex].card!.effectMultiplier =
               (newSlots[ctx.cardIndex].card!.effectMultiplier || 1) + 1;
@@ -424,27 +406,32 @@ const THE_DEVIL: CardHandler = {
   },
 };
 
-// 16. THE TOWER - Reorganiza a cada 8 ciclos, 15% chance de executar TODOS os efeitos
+// 16. THE TOWER - Reorganiza a cada 8 ciclos, chance de Arcano Maior
 const THE_TOWER: CardHandler = {
   onCycle: (ctx) => {
     let resources = 0;
     let sync = 0;
-    let selfUpdate: Partial<CardInstance> = {};
+    const selfUpdate: Partial<CardInstance> = {};
 
     const hourInTowerCycle = ctx.globalHours % 8;
     const isReorganizeTime = hourInTowerCycle === 0 && ctx.globalHours > 0;
 
+    const hasDeathTower = ctx.activeSynergies.some(s => s.id === 'DEATH_TOWER');
+    const deathTower = ctx.activeSynergies.find(s => s.id === 'DEATH_TOWER');
+
     if (isReorganizeTime) {
       const newSlots = [...ctx.slots];
 
-      // Fisher-Yates shuffle
       for (let i = newSlots.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [newSlots[i].card, newSlots[j].card] = [newSlots[j].card, newSlots[i].card];
       }
 
-      // 15% chance de ativar Arcano Maior
-      const arcanoMajorChance = 0.15;
+      let arcanoMajorChance = 0.15;
+      if (hasDeathTower) {
+        arcanoMajorChance = deathTower?.isEmpowered ? 0.625 : 0.5;
+      }
+
       if (Math.random() < arcanoMajorChance) {
         selfUpdate.towerArcanoActive = true;
         selfUpdate.towerArcanoCycles = 8;
@@ -453,7 +440,6 @@ const THE_TOWER: CardHandler = {
       ctx.setSlots(newSlots);
     }
 
-    // Se em modo Arcano Maior, simula efeitos de todas as cartas
     if (ctx.cardInstance.towerArcanoActive && (ctx.cardInstance.towerArcanoCycles || 0) > 0) {
       ctx.slots.forEach((slot, idx) => {
         if (!slot.card || getCardData(slot.card)?.effectId === 'THE_TOWER') return;
@@ -485,12 +471,11 @@ const THE_TOWER: CardHandler = {
 // 17. THE STAR - +20% Sync base, +30% por marca, penaliza desvios
 const THE_STAR: CardHandler = {
   onCycle: (ctx) => {
-    let sync = 0.2; // +20% base
+    let sync = 0.2;
 
     const cardMarks = ctx.cardInstance.marks || [];
     if (cardMarks.length === 0) return { resources: 0, sync, timeAdjustment: 0 };
 
-    // Determinar padrão dominante de marcas no círculo
     const markPatterns = new Map<string, number>();
     ctx.slots.forEach(slot => {
       if (!slot.card) return;
@@ -503,12 +488,11 @@ const THE_STAR: CardHandler = {
 
     const dominantPattern = Array.from(markPatterns.entries()).sort((a, b) => b[1] - a[1])[0]?.[0];
 
-    // Calcular bônus de marca
     const currentPattern = cardMarks.map(m => `${m.type}:${m.name}`).join('|');
     const matchesDominant = currentPattern === dominantPattern;
 
     if (matchesDominant) {
-      sync += 0.3 * cardMarks.length; // +30% por marca ativada
+      sync += 0.3 * cardMarks.length;
     } else {
       const differentMarkCount = cardMarks.length;
       const divisor = differentMarkCount >= 2 ? 3 : 2;
@@ -521,9 +505,7 @@ const THE_STAR: CardHandler = {
 
 // 18. THE MOON - Lua 100%, Signo 30%, Reduz efeitos diretos de Sync em 40%
 const THE_MOON: CardHandler = {
-  onCycle: (ctx) => {
-    // Efeito é um modificador global que afeta como sync é calculado
-    // Aplicado no processamento final
+  onCycle: () => {
     return { resources: 0, sync: 0, timeAdjustment: 0 };
   },
 };
@@ -532,11 +514,9 @@ const THE_MOON: CardHandler = {
 const THE_SUN: CardHandler = {
   onCycle: (ctx) => {
     const hour = getDayHour(ctx.globalHours);
-    const isLunarActive = hour >= 6 && hour <= 12;
+    const lunarActive = hour >= 6 && hour <= 12;
 
-    if (isLunarActive && isNoon(ctx.globalHours)) {
-      // No ciclo 12 (meio-dia), todos os efeitos serão multiplicados por 4
-      // Isso é feito no processamento global
+    if (lunarActive && isNoon(ctx.globalHours)) {
       return { resources: 0, sync: 0, timeAdjustment: 0 };
     }
 
@@ -546,39 +526,35 @@ const THE_SUN: CardHandler = {
 
 // 20. JUDGEMENT - Replica 50% dos efeitos adjacentes, reduz alvos em 25%
 const JUDGEMENT: CardHandler = {
-  onCycle: (ctx) => {
-    // Efeito é aplicado como modificador adjacente
+  onCycle: () => {
     return { resources: 0, sync: 0, timeAdjustment: 0 };
   },
 };
 
-// 21. THE WORLD - Cooldown 2 luas, 999 recursos, +100% efeitos (24h), +300% sync (12h)
+// 21. THE WORLD - Cooldown 2 luas, buffs globais
 const THE_WORLD: CardHandler = {
   onActivate: (ctx) => {
-    // Concede 999 recursos imediatos
     ctx.setCurrency(c => c + 999);
 
-    // Define cooldown de 2 luas (336 ciclos)
     const newSlots = [...ctx.slots];
     if (newSlots[ctx.cardIndex].card) {
       newSlots[ctx.cardIndex].card!.cooldownUntil = ctx.globalHours + 2 * LUNAR_MAX;
     }
 
-    // Adiciona buffs globais
     ctx.setGlobalBuffs(buffs => [
       ...buffs,
       {
         id: `world-effect-${Date.now()}`,
         sourceCardId: 21,
         duration: 24,
-        modifier: 2, // +100%
+        modifier: 2,
         type: 'EFFECT_MULTIPLIER',
       },
       {
         id: `world-sync-${Date.now()}`,
         sourceCardId: 21,
         duration: 12,
-        modifier: 4, // +300% (total 4x)
+        modifier: 4,
         type: 'SYNC_MODIFIER',
       },
     ]);
@@ -589,7 +565,7 @@ const THE_WORLD: CardHandler = {
 
 // BLANK CARD - Herda marcas e não faz nada por si
 const BLANK: CardHandler = {
-  onCycle: (ctx) => {
+  onCycle: () => {
     return { resources: 0, sync: 0, timeAdjustment: 0 };
   },
 };
@@ -658,10 +634,18 @@ export const processCycle = (
   const hour = getDayHour(globalHours);
   const hourInMoon = globalHours % LUNAR_MAX;
   const isSun = slots.some(s => getCardData(s.card)?.effectId === 'THE_SUN');
-  const isNoon = hour === 12;
+  const atNoon = hour === 12;
   const hasTemperance = slots.some(s => getCardData(s.card)?.effectId === 'TEMPERANCE');
   const hasWheel = slots.some(s => getCardData(s.card)?.effectId === 'WHEEL_OF_FORTUNE');
   const hasEmperor = slots.some(s => getCardData(s.card)?.effectId === 'THE_EMPEROR');
+
+  const hasFoolWorld = activeSynergies.some(s => s.id === 'FOOL_WORLD');
+  const foolWorld = activeSynergies.find(s => s.id === 'FOOL_WORLD');
+  const hasHierophantHermit = activeSynergies.some(s => s.id === 'HIEROPHANT_HERMIT');
+  const hieroHermit = activeSynergies.find(s => s.id === 'HIEROPHANT_HERMIT');
+  const hasMagicianPriestess = activeSynergies.some(s => s.id === 'MAGICIAN_PRIESTESS');
+  const magicianPriestess = activeSynergies.find(s => s.id === 'MAGICIAN_PRIESTESS');
+  const hasWheelJudgement = activeSynergies.some(s => s.id === 'WHEEL_JUDGEMENT');
 
   // Step 1: Collect raw outputs from each card
   const rawOutputs: Record<number, CycleOutput> = {};
@@ -696,18 +680,70 @@ export const processCycle = (
       };
 
       const output = handler.onCycle(cycleCtx);
-      rawOutputs[idx] = output;
 
-      if (output.selfUpdate) {
-        slotUpdates[idx] = output.selfUpdate;
+      if (
+        hasHierophantHermit &&
+        (cardData?.effectId === 'THE_HIEROPHANT' || cardData?.effectId === 'THE_HERMIT')
+      ) {
+        rawOutputs[idx] = { resources: 0, sync: 0, timeAdjustment: 0 };
+      } else {
+        rawOutputs[idx] = output;
+        if (output.selfUpdate) {
+          slotUpdates[idx] = output.selfUpdate;
+        }
       }
     } else {
       rawOutputs[idx] = { resources: 0, sync: 0, timeAdjustment: 0 };
     }
   });
 
-  // Step 2: Apply adjacency modifiers (lazy - only if cards exist)
-  const modifiedOutputs = JSON.parse(JSON.stringify(rawOutputs)) as Record<number, CycleOutput>;
+  // MAGician + Priestess: extra ciclo para passivos puros
+  if (hasMagicianPriestess) {
+    slots.forEach((slot, idx) => {
+      if (!slot.card) return;
+      const cardData = getCardData(slot.card);
+      if (!cardData?.effectId) return;
+      const handler = cardHandlers[cardData.effectId];
+      const isPurePassive = !!handler?.onCycle && !handler?.onActivate;
+      if (!isPurePassive) return;
+
+      const extraCtx: EffectContext = {
+        cardInstance: slot.card,
+        cardIndex: idx,
+        slots,
+        globalHours,
+        currentCycle: hourInMoon,
+        globalSync,
+        activeSynergies,
+        globalBuffs,
+        setSlots,
+        setInventory,
+        setCurrency,
+        setGlobalHours,
+        setGlobalBuffs,
+        setPendingPayouts,
+        setTickRate,
+        setSynergyResourceRate,
+      };
+
+      const extra = handler.onCycle!(extraCtx);
+      const scale = magicianPriestess?.isEmpowered ? 1.3 : 1;
+
+      rawOutputs[idx].resources += extra.resources * scale;
+      rawOutputs[idx].sync += extra.sync * scale;
+      timeAdjustment += extra.timeAdjustment * scale;
+
+      if (extra.selfUpdate) {
+        slotUpdates[idx] = {
+          ...(slotUpdates[idx] || {}),
+          ...extra.selfUpdate,
+        };
+      }
+    });
+  }
+
+  // Step 2: Apply adjacency modifiers
+  const modifiedOutputs: Record<number, CycleOutput> = JSON.parse(JSON.stringify(rawOutputs));
 
   slots.forEach((slot, idx) => {
     if (!slot.card) return;
@@ -716,14 +752,12 @@ export const processCycle = (
     const effect = cardData?.effectId;
     const { left, right } = getAdjacentCards(slots, idx);
 
-    // MAGICIAN: dobra efeitos à direita (não abranja recursos-chave)
     if (effect === 'THE_MAGICIAN' && right) {
       const rightIdx = (idx + 1) % slots.length;
       modifiedOutputs[rightIdx].resources *= 2;
       modifiedOutputs[rightIdx].sync *= 2;
     }
 
-    // STRENGTH: +1 para cartas adjacentes
     if (effect === 'STRENGTH') {
       const leftIdx = (idx - 1 + slots.length) % slots.length;
       const rightIdx = (idx + 1) % slots.length;
@@ -731,7 +765,6 @@ export const processCycle = (
       modifiedOutputs[rightIdx].resources += 1;
     }
 
-    // JUDGEMENT: replica 50% dos adjacentes, reduz alvo em 25%
     if (effect === 'JUDGEMENT') {
       const leftIdx = (idx - 1 + slots.length) % slots.length;
       const rightIdx = (idx + 1) % slots.length;
@@ -741,30 +774,29 @@ export const processCycle = (
       modifiedOutputs[idx].sync += rawOutputs[leftIdx].sync * 0.5;
       modifiedOutputs[idx].sync += rawOutputs[rightIdx].sync * 0.5;
 
-      modifiedOutputs[leftIdx].resources *= 0.75;
-      modifiedOutputs[rightIdx].resources *= 0.75;
-      modifiedOutputs[leftIdx].sync *= 0.75;
-      modifiedOutputs[rightIdx].sync *= 0.75;
+      if (!hasWheelJudgement) {
+        modifiedOutputs[leftIdx].resources *= 0.75;
+        modifiedOutputs[rightIdx].resources *= 0.75;
+        modifiedOutputs[leftIdx].sync *= 0.75;
+        modifiedOutputs[rightIdx].sync *= 0.75;
+      }
     }
   });
 
-  // Step 3: Apply global modifiers (Sun, Buffs, Emperor synergy)
+  // Step 3: Apply global modifiers (Sun, Buffs, Emperor)
   Object.entries(modifiedOutputs).forEach(([idxStr, output]) => {
-    const idx = parseInt(idxStr);
+    const idx = parseInt(idxStr, 10);
 
-    // Sun multiplier at noon
-    if (isSun && isNoon) {
+    if (isSun && atNoon) {
       output.resources *= 4;
       output.sync *= 4;
     }
 
-    // Effect multiplier from card instance
     if (slots[idx]?.card?.effectMultiplier) {
-      output.resources *= slots[idx].card!.effectMultiplier;
-      output.sync *= slots[idx].card!.effectMultiplier;
+      output.resources *= slots[idx].card!.effectMultiplier!;
+      output.sync *= slots[idx].card!.effectMultiplier!;
     }
 
-    // Global buffs
     globalBuffs.forEach(buff => {
       if (buff.type === 'EFFECT_MULTIPLIER') {
         output.resources *= buff.modifier;
@@ -773,21 +805,17 @@ export const processCycle = (
       }
     });
 
-    // Emperor synergy bonus (+25%)
     if (hasEmperor) {
       output.resources *= 1.25;
       output.sync *= 1.25;
     }
   });
 
-  // Step 4: Apply Temperance equalization (lazy - only if present)
+  // Step 4: Temperance equalization
   if (hasTemperance) {
     const resourceValues = Object.entries(modifiedOutputs)
       .filter(([_, out]) => out.resources > 0)
-      .map(([idx, out]) => ({
-        idx: parseInt(idx),
-        value: out.resources,
-      }));
+      .map(([idx, out]) => ({ idx: parseInt(idx, 10), value: out.resources }));
 
     if (resourceValues.length > 1) {
       const avg = resourceValues.reduce((acc, item) => acc + item.value, 0) / resourceValues.length;
@@ -798,10 +826,7 @@ export const processCycle = (
 
     const syncValues = Object.entries(modifiedOutputs)
       .filter(([_, out]) => out.sync > 0)
-      .map(([idx, out]) => ({
-        idx: parseInt(idx),
-        value: out.sync,
-      }));
+      .map(([idx, out]) => ({ idx: parseInt(idx, 10), value: out.sync }));
 
     if (syncValues.length > 1) {
       const avg = syncValues.reduce((acc, item) => acc + item.value, 0) / syncValues.length;
@@ -811,14 +836,30 @@ export const processCycle = (
     }
   }
 
-  // Step 5: Aggregate final values
+  // Step 5: Aggregate
   Object.values(modifiedOutputs).forEach(output => {
     totalResources += output.resources;
     totalSync += output.sync;
     timeAdjustment += output.timeAdjustment;
   });
 
-  // Wheel of Fortune bonus (lazy - only if present and marks active)
+  // FOOL_WORLD: buff percentual de recursos nos ciclos 6–18
+  if (hasFoolWorld) {
+    if (hour >= 6 && hour < 18) {
+      const bonus = foolWorld?.isEmpowered ? 0.0375 : 0.03;
+      totalResources *= 1 + bonus;
+    }
+  }
+
+  // Hermit + Hierophant: fonte fixa de recursos/s via synergyResourceRate
+  if (hasHierophantHermit) {
+    const basePerSecond = hieroHermit?.isEmpowered ? 0.625 : 0.5;
+    setSynergyResourceRate(basePerSecond * 30); // 30 => converter para sistema existente
+  } else {
+    setSynergyResourceRate(0);
+  }
+
+  // Wheel of Fortune bonus global (mantido)
   if (hasWheel) {
     slots.forEach(slot => {
       if (slot.card?.marks && slot.card.marks.length > 0) {
@@ -904,13 +945,8 @@ export const handleRestock = (
   slots: CircleSlot[],
   context: RestockContext
 ): ShopItem[] => {
-  // Allow cards to modify shop items during restock
-  // Currently just returns items as-is
-  // Can be extended to call onRestock handlers from cards
-  
   let modifiedItems = [...items];
 
-  // Call onRestock handlers for cards in circle
   slots.forEach((slot, idx) => {
     if (!slot.card) return;
 
