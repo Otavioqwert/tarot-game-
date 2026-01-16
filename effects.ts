@@ -129,15 +129,16 @@ const THE_MAGICIAN: CardHandler = {
 };
 
 // 2. THE HIGH PRIESTESS - Avança 168 ciclos, cooldown de 168 ciclos
+// 🔴 HOTFIX: Cooldown era 2*LUNAR_MAX (336h), agora é 1*LUNAR_MAX (168h)
 const THE_HIGH_PRIESTESS: CardHandler = {
   onActivate: (ctx) => {
     // Avança 168 ciclos (1 lua completa)
     ctx.setGlobalHours(h => h + LUNAR_MAX);
 
-    // Define cooldown de 168 ciclos
+    // Define cooldown de 168 ciclos (CORRIGIDO: era + LUNAR_MAX + LUNAR_MAX)
     const newSlots = [...ctx.slots];
     if (newSlots[ctx.cardIndex].card) {
-      newSlots[ctx.cardIndex].card!.cooldownUntil = ctx.globalHours + LUNAR_MAX + LUNAR_MAX;
+      newSlots[ctx.cardIndex].card!.cooldownUntil = ctx.globalHours + LUNAR_MAX;
     }
     ctx.setSlots(newSlots);
   },
@@ -184,8 +185,12 @@ const THE_HIEROPHANT: CardHandler = {
 };
 
 // 6. THE LOVERS - Escolha de 2 cartas, deixa carta em branco herdando marcas
+// ✅ Modal já conectado em App.tsx (handleActivateEffect)
 const THE_LOVERS: CardHandler = {
   onActivate: (ctx) => {
+    // A lógica de escolha está implementada em App.tsx
+    // Este handler é chamado por activateCardEffect mas a lógica principal
+    // está no handleActivateEffect do App que detecta THE_LOVERS e abre o modal
     const currentMarks = ctx.cardInstance.marks;
 
     const newSlots = [...ctx.slots];
@@ -278,7 +283,8 @@ const JUSTICE: CardHandler = {
   },
 };
 
-// 12. THE HANGED MAN - Consome cartas e retorna 50 recursos por carta após 1 lua
+// 12. THE HANGED MAN - Consome cartas e retorna ((n+1)*n/2)*50 recursos após 1 lua
+// 🔴 HOTFIX: Fórmula corrigida para triangular (estava linear n*50)
 const THE_HANGED_MAN: CardHandler = {
   onActivate: (ctx) => {
     const newSlots = [...ctx.slots];
@@ -295,7 +301,8 @@ const THE_HANGED_MAN: CardHandler = {
 
     if (hoursSinceActive >= LUNAR_MAX) {
       const consumedCount = ctx.cardInstance.hangedManConsumes || 0;
-      const resources = 50 * consumedCount;
+      // 🔴 CORRIGIDO: Fórmula triangular (n*(n+1)/2)*50
+      const resources = 50 * consumedCount * (consumedCount + 1) / 2;
 
       const selfUpdate: Partial<CardInstance> = {
         hangedManActive: false,
@@ -391,7 +398,7 @@ const THE_DEVIL: CardHandler = {
         if (rewardType < 0.33) {
           ctx.setCurrency(c => c + 250);
         } else if (rewardType < 0.66) {
-          // TODO: sync permanente
+          // TODO: sync permanente - implementar setPermanentSyncBonus
         } else {
           if (newSlots[ctx.cardIndex].card) {
             newSlots[ctx.cardIndex].card!.effectMultiplier =
