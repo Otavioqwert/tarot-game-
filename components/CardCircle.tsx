@@ -11,6 +11,11 @@ interface CardCircleProps {
   onActivate: (index: number) => void;
   selectedCardIndex: number | null;
   globalHours: number;
+  empressStates: Record<string, {
+    isActive: boolean;
+    cyclesLeft: number;
+    lastTick: number;
+  }>;
 }
 
 interface Interaction {
@@ -25,7 +30,7 @@ const getCardData = (instance?: CardInstance | null) => {
     return TAROT_LIBRARY.find(c => c.id === instance.cardId);
 }
 
-const CardCircle: React.FC<CardCircleProps> = ({ slots, onRemove, onPlace, onActivate, selectedCardIndex, globalHours }) => {
+const CardCircle: React.FC<CardCircleProps> = ({ slots, onRemove, onPlace, onActivate, selectedCardIndex, globalHours, empressStates }) => {
   const R = slots.length === 4 ? 140 : 130;
   const cardScale = slots.length === 4 ? 'scale(0.95)' : 'scale(1)';
 
@@ -93,6 +98,12 @@ const CardCircle: React.FC<CardCircleProps> = ({ slots, onRemove, onPlace, onAct
         const isActivatable = cardData?.effectId && cardHandlers[cardData.effectId]?.onActivate;
         const isOnCooldown = slot.card?.cooldownUntil && slot.card.cooldownUntil > globalHours;
 
+        // 👑 Verifica se é Imperatriz e busca seu estado de ciclo
+        const isEmpress = cardData && (cardData.name === 'Imperatriz' || cardData.name === 'The Empress');
+        const empressState = slot.card?.instanceId ? empressStates[slot.card.instanceId] : undefined;
+        const empressIsActive = empressState?.isActive ?? false;
+        const empressCyclesLeft = empressState?.cyclesLeft ?? 0;
+
         let passiveCooldownProgress: { progress: number, color: string } | null = null;
         if (cardData?.effectId) {
             switch (cardData.effectId) {
@@ -150,7 +161,8 @@ const CardCircle: React.FC<CardCircleProps> = ({ slots, onRemove, onPlace, onAct
 
             <div 
               className={`w-full h-full rounded-lg border transition-all duration-300 flex flex-col items-center justify-center overflow-hidden
-                ${slot.card ? 'bg-[#0f172a] border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.3)]' : 'bg-slate-900/20 border-slate-800 border-dashed'}
+                ${slot.card ? 'bg-[#0f172a] shadow-[0_0_15px_rgba(99,102,241,0.3)]' : 'bg-slate-900/20 border-slate-800 border-dashed'}
+                ${isEmpress && empressIsActive ? 'border-yellow-400 border-4 shadow-[0_0_25px_rgba(250,204,21,0.7)] animate-pulse' : slot.card ? 'border-indigo-500' : ''}
                 ${isPlacing ? 'border-amber-400 border-solid scale-105 shadow-[0_0_20px_rgba(250,179,8,0.4)] cursor-pointer' : 'hover:border-slate-600'}
                 ${!isActivatable && slot.card && !slot.card.isBlank ? 'hover:scale-105 cursor-pointer' : ''}
               `}
@@ -164,6 +176,20 @@ const CardCircle: React.FC<CardCircleProps> = ({ slots, onRemove, onPlace, onAct
                       </div>
                     ))}
                   </div>
+
+                  {/* 🔄 Indicador de ciclo da Imperatriz */}
+                  {isEmpress && empressState && (
+                    <div 
+                      className={`absolute top-1 right-1 z-20 px-1.5 py-0.5 rounded-full text-[8px] font-bold flex items-center justify-center min-w-[28px]
+                        ${empressIsActive 
+                          ? 'bg-gradient-to-br from-yellow-400 to-orange-500 text-black shadow-[0_0_10px_rgba(250,204,21,0.8)] animate-pulse' 
+                          : 'bg-gray-700/90 text-gray-300 border border-gray-600'}
+                      `}
+                    >
+                      {empressIsActive ? 'ATIVA' : empressCyclesLeft}
+                    </div>
+                  )}
+
                   {cardData.imageUrl !== 'about:blank' ? (
                     <img src={cardData.imageUrl} alt={cardData.name} className="w-full h-full object-cover absolute top-0 left-0" />
                   ) : (
