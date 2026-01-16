@@ -29,6 +29,13 @@ export interface Curse {
   state?: any; // For Volatile tracking (current mode)
 }
 
+// 👑 Estado de ciclo da Imperatriz (30s por ciclo)
+export interface EmpressState {
+  isActive: boolean;   // true = ciclo ativo (30s), false = ciclo inativo
+  cyclesLeft: number;  // 0 = ativo, 1-3 = ciclos inativos restantes
+  lastTick: number;    // timestamp (Date.now()) da última mudança de ciclo
+}
+
 export interface Card {
   id: number;
   name: string;
