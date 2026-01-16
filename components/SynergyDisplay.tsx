@@ -1,17 +1,39 @@
-
 import React from 'react';
 import { ActiveSynergy } from '../synergies';
+import { DAY_START, DAY_END } from '../constants';
 
 interface SynergyDisplayProps {
   synergies: ActiveSynergy[];
   isDayTime: boolean;
+  globalHours?: number;
 }
 
-const SynergyDisplay: React.FC<SynergyDisplayProps> = ({ synergies, isDayTime }) => {
+const SynergyDisplay: React.FC<SynergyDisplayProps> = ({ synergies, isDayTime, globalHours = 0 }) => {
+  // Verifica se Sun+Moon está ativa E é de dia
+  const sunMoonSynergy = synergies.find(s => s.id === 'SUN_MOON');
+  const shouldShowEclipseBadge = sunMoonSynergy && isDayTime;
+
   if (isDayTime) {
     return (
       <div className="bg-slate-900/40 p-4 rounded-2xl border border-cyan-900/20 h-full flex flex-col">
         <h3 className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest mb-3 text-center">Sinergias Ativas</h3>
+        
+        {/* Badge de Eclipse Eterno quando ativo de dia */}
+        {shouldShowEclipseBadge && (
+          <div className="mb-3 bg-gradient-to-r from-orange-900/30 via-purple-900/30 to-indigo-900/30 p-2 rounded-lg border border-purple-500/40 animate-pulse">
+            <div className="flex items-center space-x-2">
+              <span className="text-lg">🌗</span>
+              <div className="flex-1">
+                <span className="text-xs font-bold text-purple-300 block">Eclipse Ativo</span>
+                <span className="text-[9px] text-purple-400/80">Marcas lunares funcionando de dia</span>
+              </div>
+              <div className="text-[9px] text-purple-300/60 font-mono">
+                {globalHours % 24}h
+              </div>
+            </div>
+          </div>
+        )}
+        
         {synergies.length > 0 ? (
           <div className="space-y-2 overflow-y-auto pr-1">
             {synergies.map(s => (

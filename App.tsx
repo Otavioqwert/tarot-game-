@@ -216,10 +216,18 @@ const App: React.FC = () => {
 
   }, [globalHours]);
 
+  // ✅ FIX: Recursos fixos (Hierophant+Hermit) separados de recursos afetados por sync
   useEffect(() => {
-    let modifiedRate = BASE_RESOURCE_RATE + (synergyResourceRate / 30); // Convert from per-tick to per-second
+    // BASE_RESOURCE_RATE é afetado por sync
+    const baseRateWithSync = BASE_RESOURCE_RATE * (1 + globalSync / 100);
+    
+    // synergyResourceRate (Hierophant+Hermit) é FIXO (não afetado por sync)
+    const fixedSynergyRate = synergyResourceRate / 30;
+    
+    const totalRate = baseRateWithSync + fixedSynergyRate;
+    
     const resourceTimer = setInterval(() => {
-      setCurrency(c => c + modifiedRate * (1 + globalSync / 100));
+      setCurrency(c => c + totalRate);
     }, 1000);
     return () => clearInterval(resourceTimer);
   }, [globalSync, synergyResourceRate]);
@@ -588,7 +596,7 @@ const App: React.FC = () => {
             <div className="md:col-span-2">
               <CycleDisplay cycle={cycle} currentSignIndex={currentSignIndex} isDayTime={isDayTime} />
             </div>
-            <SynergyDisplay synergies={activeSynergies} isDayTime={isDayTime} />
+            <SynergyDisplay synergies={activeSynergies} isDayTime={isDayTime} globalHours={globalHours} />
           </div>
           <div className="relative py-12">
             <CardCircle slots={slots} onRemove={handleRemoveCard} onPlace={handlePlaceCard} selectedCardIndex={selectedInventoryIndex} onActivate={handleActivateEffect} globalHours={globalHours} />
