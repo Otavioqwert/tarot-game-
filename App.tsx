@@ -22,6 +22,9 @@ import SaveLoadModal from './components/SaveLoadModal';
 const BASE_RESOURCE_RATE = 0.05;
 const SAVE_VERSION = 1;
 
+// ⏱️ Duração fixa de cada ciclo da Imperatriz: 30s
+const EMPRESS_CYCLE_DURATION_MS = 30000;
+
 const App: React.FC = () => {
   const [currency, setCurrency] = useState(4999);
   const [activeTab, setActiveTab] = useState<'shop' | 'inventory'>('inventory');
@@ -52,6 +55,13 @@ const App: React.FC = () => {
   ]);
   
   const activeSynergies = useMemo(() => getActiveSynergies(slots), [slots]);
+
+  // 🔄 Estado de ciclos da Imperatriz (por instância)
+  const [empressStates, setEmpressStates] = useState<Record<string, {
+    isActive: boolean;
+    cyclesLeft: number; // 0 = ativo, 1-3 = inativo
+    lastTick: number;   // timestamp do último avanço de ciclo
+  }>>({});
 
   useEffect(() => {
     const hasEmpressEmperor = activeSynergies.some(s => s.id === 'EMPRESS_EMPEROR');
@@ -161,6 +171,45 @@ const App: React.FC = () => {
         setSlots(newSlots);
     }
   }, [slots, currentSignIndex, currentPhaseIndex, globalHours, isDayTime, activeSynergies]);
+
+  // 🔄 Loop de ciclos da Imperatriz: avança a cada 30s por instância
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setEmpressStates(prev => {
+        const now = Date.now();
+        const next: typeof prev = { ...prev };
+
+        Object.keys(next).forEach(id => {
+          const state = next[id];
+          const elapsed = now - state.lastTick;
+
+          if (elapsed >= EMPRESS_CYCLE_DURATION_MS) {
+            if (state.cyclesLeft > 0) {
+              // Continua inativa, decrementa ciclo
+              next[id] = {
+                ...state,
+                cyclesLeft: state.cyclesLeft - 1,
+                isActive: false,
+                lastTick: now
+              };
+            } else {
+              // Entra no ciclo ativo (1 bloco de 30s)
+              next[id] = {
+                ...state,
+                isActive: true,
+                cyclesLeft: 3,
+                lastTick: now
+              };
+            }
+          }
+        });
+
+        return next;
+      });
+    }, 1000); // checa a cada 1s
+
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (globalHours === 0) {
@@ -301,6 +350,18 @@ const App: React.FC = () => {
       if (!cardInstance) return;
       const cardData = TAROT_LIBRARY.find(c => c.id === cardInstance.cardId);
       if (!cardData) return;
+
+      // 🎴 Registro/Reset dos ciclos da Imperatriz quando clicada
+      if (cardData.name === 'Imperatriz' || cardData.name === 'The Empress') {
+        setEmpressStates(prev => ({
+          ...prev,
+          [cardInstance.instanceId]: {
+            isActive: true,
+            cyclesLeft: 3, // depois deste clique, ela entra no ciclo 3 inativos + 1 ativo
+            lastTick: Date.now()
+          }
+        }));
+      }
 
       if (cardData.effectId === 'THE_LOVERS') {
           const blankCardsInCircle = slots.filter(s => s.card?.isBlank).length;
@@ -599,7 +660,15 @@ const App: React.FC = () => {
             <SynergyDisplay synergies={activeSynergies} isDayTime={isDayTime} globalHours={globalHours} />
           </div>
           <div className="relative py-12">
-            <CardCircle slots={slots} onRemove={handleRemoveCard} onPlace={handlePlaceCard} selectedCardIndex={selectedInventoryIndex} onActivate={handleActivateEffect} globalHours={globalHours} />
+            <CardCircle 
+              slots={slots} 
+              onRemove={handleRemoveCard} 
+              onPlace={handlePlaceCard} 
+              selectedCardIndex={selectedInventoryIndex} 
+              onActivate={handleActivateEffect} 
+              globalHours={globalHours}
+              empressStates={empressStates}
+            />
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
               <span className="text-4xl opacity-10 font-mystic text-indigo-500 block uppercase tracking-[0.5em]">{ZODIAC_SIGNS[currentSignIndex].name}</span>
             </div>
